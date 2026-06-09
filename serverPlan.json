@@ -1,0 +1,253 @@
+{
+  "project": "Multi-Media Payload Server",
+  "branchName": "feature/multi-media-payload-server",
+  "description": "A Go HTTP server that accepts POST requests containing JSON, Markdown, PDF, or media files. Binary files are stored in MinIO; structured/text content is stored in PostgreSQL.",
+  "stack": {
+    "language": "Go",
+    "http": "net/http (stdlib)",
+    "database": "PostgreSQL",
+    "dbDriver": "pgx/v5",
+    "objectStorage": "MinIO (Docker)",
+    "minioSDK": "minio-go/v7",
+    "migrations": "golang-migrate",
+    "config": "godotenv",
+    "auth": "API Key (stored in DB)",
+    "cron": "robfig/cron/v3"
+  },
+  "projectStructure": {
+    "main.go": "entry point, wires everything together",
+    ".env": "config (DB URL, MinIO creds, port)",
+    ".env.example": "example config",
+    "handler/payload.go": "HTTP handler, content-type routing",
+    "handler/download.go": "GET /payload/{id}/download",
+    "middleware/auth.go": "API key validation middleware",
+    "processor/json.go": "parse + validate JSON body",
+    "processor/markdown.go": "read .md file from multipart",
+    "processor/binary.go": "handle PDF and image uploads",
+    "storage/db.go": "PostgreSQL: insert/query payloads",
+    "storage/minio.go": "MinIO: upload/download/delete objects",
+    "jobs/cleanup.go": "monthly cleanup cron job",
+    "model/payload.go": "Payload struct",
+    "db/migrations/001_create_api_keys.sql": "api_keys table migration",
+    "db/migrations/002_create_payloads.sql": "payloads table migration",
+    "docker-compose.yml": "PostgreSQL + MinIO",
+    "Makefile": "dev shortcuts"
+  },
+  "databaseSchema": {
+    "api_keys": {
+      "id": "UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+      "key_hash": "VARCHAR(64) NOT NULL UNIQUE -- SHA-256 hash of the raw key",
+      "name": "VARCHAR(100) -- label e.g. 'dev', 'prod'",
+      "created_at": "TIMESTAMPTZ DEFAULT NOW()"
+    },
+    "payloads": {
+      "id": "UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+      "type": "VARCHAR(20) NOT NULL -- 'json' | 'markdown' | 'pdf' | 'image'",
+      "mime_type": "VARCHAR(100)",
+      "filename": "VARCHAR(255)",
+      "content": "TEXT -- text/json content stored directly",
+      "json_data": "JSONB",
+      "bucket": "VARCHAR(100)",
+      "storage_key": "VARCHAR(500) -- object key in MinIO",
+      "file_size": "BIGINT",
+      "created_at": "TIMESTAMPTZ DEFAULT NOW()"
+    }
+  },
+  "api": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/payload",
+        "description": "Upload a payload (JSON body or file via multipart/form-data)",
+        "contentTypes": [
+          "application/json",
+          "multipart/form-data"
+        ],
+        "supportedFileTypes": [
+          "text/markdown",
+          "application/pdf",
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp"
+        ],
+        "response": {
+          "status": 201,
+          "body": {
+            "id": "uuid",
+            "type": "pdf",
+            "filename": "doc.pdf",
+            "storage_key": "pdf/uuid/doc.pdf",
+            "created_at": "2026-04-22T10:00:00Z"
+          }
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/payload/{id}",
+        "description": "Returns metadata for a payload",
+        "response": {
+          "status": 200,
+          "body": {
+            "id": "uuid",
+            "type": "pdf",
+            "filename": "doc.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 204800,
+            "created_at": "2026-04-22T10:00:00Z"
+          }
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/payload/{id}/download",
+        "description": "Downloads the payload content",
+        "behavior": {
+          "json": "Returns JSON body directly",
+          "markdown": "Returns raw text with Content-Type: text/markdown",
+          "pdf": "Returns presigned MinIO URL (redirect 302)",
+          "image": "Returns presigned MinIO URL (redirect 302)"
+        },
+        "presignedUrlExpiry": "15m",
+        "response": {
+          "binaryTypes": {
+            "status": 302,
+            "header": "Location: http://localhost:9000/payloads/pdf/uuid/doc.pdf?X-Amz-Signature=..."
+          }
+        }
+      }
+    ],
+    "auth": {
+      "type": "API Key",
+      "header": "Authorization: Bearer <api-key>",
+      "flow": [
+        "On first run, a bootstrap key is printed to stdout (never stored in plain text again)",
+        "The server hashes the incoming key with SHA-256 and looks it up in api_keys",
+        "If no match → 401 Unauthorized"
+      ]
+    }
+  },
+  "minio": {
+    "bucket": "payloads",
+    "objectKeyFormat": "{type}/{uuid}/{original_filename}",
+    "example": "pdf/3f2a1b.../report.pdf"
+  },
+  "cleanupJob": {
+    "schedule": "0 0 1 * *",
+    "description": "Runs on the 1st of every month at 00:00",
+    "retentionDays": 30,
+    "steps": [
+      "Query DB: SELECT id, bucket, storage_key WHERE created_at < NOW() - INTERVAL '30 days'",
+      "For each row with a storage_key → delete object from MinIO",
+      "DELETE FROM payloads WHERE created_at < NOW() - INTERVAL '30 days'",
+      "Log: 'Cleanup complete: N records deleted'"
+    ]
+  },
+  "environment": {
+    "PORT": "8080",
+    "POSTGRES_URL": "postgres://user:password@localhost:5432/payloaddb",
+    "MINIO_ENDPOINT": "localhost:9000",
+    "MINIO_ACCESS_KEY": "minioadmin",
+    "MINIO_SECRET_KEY": "minioadmin",
+    "MINIO_BUCKET": "payloads",
+    "MINIO_USE_SSL": "false",
+    "PRESIGNED_URL_EXPIRY": "15m",
+    "CLEANUP_RETENTION_DAYS": "30"
+  },
+  "dockerCompose": {
+    "services": {
+      "postgres": {
+        "image": "postgres:16",
+        "environment": {
+          "POSTGRES_USER": "user",
+          "POSTGRES_PASSWORD": "password",
+          "POSTGRES_DB": "payloaddb"
+        },
+        "ports": ["5432:5432"]
+      },
+      "minio": {
+        "image": "minio/minio",
+        "command": "server /data --console-address ':9001'",
+        "environment": {
+          "MINIO_ROOT_USER": "minioadmin",
+          "MINIO_ROOT_PASSWORD": "minioadmin"
+        },
+        "ports": ["9000:9000", "9001:9001"]
+      }
+    }
+  },
+  "buildPhases": [
+    {
+      "phase": 1,
+      "name": "Foundation",
+      "tasks": [
+        { "description": "Set up docker-compose.yml with PostgreSQL and MinIO", "done": false },
+        { "description": "Create .env and config loader", "done": false },
+        { "description": "Write DB migrations (api_keys, payloads tables)", "done": false },
+        { "description": "Set up pgx connection pool in main.go", "done": false },
+        { "description": "Set up MinIO client in main.go", "done": false }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Auth",
+      "tasks": [
+        { "description": "Generate and hash a bootstrap API key on first run, print raw key to stdout", "done": false },
+        { "description": "middleware/auth.go: extract Authorization: Bearer header, hash, query DB", "done": false },
+        { "description": "Return 401 if key missing or not found", "done": false },
+        { "description": "Wire middleware to all routes", "done": false }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Upload (POST /payload)",
+      "tasks": [
+        { "description": "POST /payload accepts application/json → store JSONB", "done": false },
+        { "description": "POST /payload accepts multipart/form-data → detect MIME type", "done": false },
+        { "description": "Markdown: store as TEXT in DB", "done": false },
+        { "description": "PDF/Image: upload to MinIO, store metadata in DB", "done": false },
+        { "description": "Return 201 with payload ID", "done": false }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Download",
+      "tasks": [
+        { "description": "GET /payload/{id} — return metadata from DB", "done": false },
+        { "description": "GET /payload/{id}/download: JSON/Markdown → return content directly", "done": false },
+        { "description": "GET /payload/{id}/download: PDF/Image → generate presigned MinIO URL, redirect 302", "done": false }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Cleanup Job",
+      "tasks": [
+        { "description": "jobs/cleanup.go: query old records, delete MinIO objects, delete DB rows", "done": false },
+        { "description": "Register with robfig/cron in main.go on schedule 0 0 1 * *", "done": false },
+        { "description": "Log count of deleted records", "done": false }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Polish",
+      "tasks": [
+        { "description": "Input validation (file size limit, allowed MIME types)", "done": false },
+        { "description": "Structured JSON error responses", "done": false },
+        { "description": "Request logging middleware", "done": false },
+        { "description": "Makefile targets: make run, make migrate, make docker-up", "done": false }
+      ]
+    }
+  ],
+  "learningConcepts": [
+    "Multipart form parsing in Go (r.ParseMultipartForm)",
+    "MIME type detection (net/http.DetectContentType)",
+    "Object storage concepts (buckets, object keys, presigned URLs)",
+    "PostgreSQL JSONB for schemaless JSON storage",
+    "Separating storage concerns (DB vs object store)",
+    "Layered architecture: handler → processor → storage",
+    "API key auth: hashing secrets, never storing plain text",
+    "HTTP middleware chaining in Go",
+    "Cron scheduling with robfig/cron",
+    "Coordinated cleanup: delete from two systems (DB + object store) safely"
+  ]
+}

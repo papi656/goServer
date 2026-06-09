@@ -1,0 +1,221 @@
+{
+  "title": "Multi-Media Payload Server",
+  "description": "A Go HTTP server that accepts POST requests containing JSON, Markdown, PDF, or media files. Binary files are stored in MinIO; structured/text content is stored in PostgreSQL.",
+  "items": [
+    {
+      "weekNumber": 1,
+      "title": "Phase 1: Foundation",
+      "description": "Set up PostgreSQL + MinIO via docker-compose, config loader, migrations, connection pooling.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "Database",
+          "title": "pgx connection pooling",
+          "author": "Jackc/pgx",
+          "url": "https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool"
+        },
+        {
+          "type": "article",
+          "subject": "Database",
+          "title": "pgx wiki getting started",
+          "author": "Jackc/pgx",
+          "url": "https://github.com/jackc/pgx/wiki/Getting-started-with-pgx"
+        },
+        {
+          "type": "article",
+          "subject": "Migrations",
+          "title": "golang-migrate",
+          "author": "golang-migrate",
+          "url": "https://github.com/golang-migrate/migrate"
+        },
+        {
+          "type": "article",
+          "subject": "Migrations",
+          "title": "Using golang-migrate",
+          "author": "DigitalOcean",
+          "url": "https://www.digitalocean.com/community/tutorials/how-to-use-migrations-to-create-and-manage-database-tables-in-postgresql"
+        },
+        {
+          "type": "article",
+          "subject": "Object Storage",
+          "title": "MinIO Go SDK docs",
+          "author": "MinIO",
+          "url": "https://pkg.go.dev/github.com/minio/minio-go/v7"
+        },
+        {
+          "type": "article",
+          "subject": "Object Storage",
+          "title": "MinIO Go SDK Examples",
+          "author": "MinIO",
+          "url": "https://github.com/minio/minio-go/tree/master/examples"
+        }
+      ],
+      "resourceListStatus": [false, false, false, false, false, false],
+      "status": "backlog"
+    },
+    {
+      "weekNumber": 2,
+      "title": "Phase 2: Auth",
+      "description": "API key authentication with bootstrap key generation on first run.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "Security",
+          "title": "crypto/sha256",
+          "author": "Go",
+          "url": "https://pkg.go.dev/crypto/sha256"
+        },
+        {
+          "type": "article",
+          "subject": "Security",
+          "title": "OWASP password storage cheat sheet",
+          "author": "OWASP",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"
+        }
+      ],
+      "resourceListStatus": [false, false],
+      "status": "backlog"
+    },
+    {
+      "weekNumber": 3,
+      "title": "Phase 3: Upload",
+      "description": "Handle JSON, Markdown, PDF, and image payloads.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "HTTP",
+          "title": "Go net/http docs",
+          "author": "Go",
+          "url": "https://pkg.go.dev/net/http"
+        },
+        {
+          "type": "article",
+          "subject": "HTTP",
+          "title": "Multipart file upload in Go",
+          "author": "Go",
+          "url": "https://pkg.go.dev/mime/multipart"
+        },
+        {
+          "type": "article",
+          "subject": "MIME Type",
+          "title": "DetectContentType",
+          "author": "Go",
+          "url": "https://pkg.go.dev/net/http#DetectContentType"
+        },
+        {
+          "type": "article",
+          "subject": "MIME Type",
+          "title": "net/http release notes Go 1.24",
+          "author": "Go",
+          "url": "https://go.dev/doc/go1.24"
+        },
+        {
+          "type": "article",
+          "subject": "Database",
+          "title": "pgx JSON/JSONB docs",
+          "author": "Jackc/pgx",
+          "url": "https://pkg.go.dev/github.com/jackc/pgx/v5"
+        },
+        {
+          "type": "article",
+          "subject": "Database",
+          "title": "pgx JSONB guide",
+          "author": "Jackc/pgx",
+          "url": "https://github.com/jackc/pgx/wiki/JSONB-Guide"
+        },
+        {
+          "type": "article",
+          "subject": "Database",
+          "title": "CockroachDB blog",
+          "author": "CockroachDB",
+          "url": "https://www.cockroachlabs.com/blog/jsonb-go/"
+        },
+        {
+          "type": "article",
+          "subject": "Object Storage",
+          "title": "S3 object keys",
+          "author": "AWS",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html"
+        },
+        {
+          "type": "article",
+          "subject": "Object Storage",
+          "title": "S3 presigned URLs",
+          "author": "AWS",
+          "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html"
+        }
+      ],
+      "resourceListStatus": [false, false, false, false, false, false, false, false, false],
+      "status": "backlog"
+    },
+    {
+      "weekNumber": 4,
+      "title": "Phase 4: Download",
+      "description": "Retrieve payload metadata and content.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "Object Storage",
+          "title": "MinIO presigned operations",
+          "author": "MinIO",
+          "url": "https://docs.min.io/enterprise/aistor-object-store/reference/cli/mc-share/"
+        }
+      ],
+      "resourceListStatus": [false],
+      "status": "backlog"
+    },
+    {
+      "weekNumber": 5,
+      "title": "Phase 5: Cleanup",
+      "description": "Monthly cron job to delete old records.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "Cron",
+          "title": "robfig/cron GitHub repo",
+          "author": "robfig",
+          "url": "https://github.com/robfig/cron"
+        },
+        {
+          "type": "article",
+          "subject": "Cron",
+          "title": "robfig/cron pkg.go.dev",
+          "author": "robfig",
+          "url": "https://pkg.go.dev/github.com/robfig/cron/v3"
+        }
+      ],
+      "resourceListStatus": [false, false],
+      "status": "backlog"
+    },
+    {
+      "weekNumber": 6,
+      "title": "Phase 6: Polish",
+      "description": "Validation, error responses, logging.",
+      "resourceList": [
+        {
+          "type": "article",
+          "subject": "HTTP",
+          "title": "Writing HTTP middleware in Go",
+          "author": "Alex Edwards",
+          "url": "https://www.alexedwards.net/blog/making-and-using-middleware"
+        },
+        {
+          "type": "article",
+          "subject": "HTTP",
+          "title": "alice - middleware chaining",
+          "author": "justinas",
+          "url": "https://pkg.go.dev/github.com/justinas/alice"
+        },
+        {
+          "type": "article",
+          "subject": "HTTP",
+          "title": "Chaining HTTP Middleware in Go",
+          "author": "oneuptime",
+          "url": "https://oneuptime.com/blog/post/2026-01-25-chain-http-middleware-auth-logging-cors-go/view"
+        }
+      ],
+      "resourceListStatus": [false, false, false],
+      "status": "backlog"
+    }
+  ]
+}
