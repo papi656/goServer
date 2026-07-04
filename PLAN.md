@@ -1,5 +1,4 @@
 # Multi-Media Payload Server
-**Branch Name:** `feature/multi-media-payload-server`
 
 ## Description
 A Go HTTP server that accepts POST requests containing JSON, Markdown, PDF, or media files. Binary files are stored in MinIO; structured/text content is stored in PostgreSQL.
